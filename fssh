@@ -2,6 +2,7 @@
 from iterfzf import iterfzf
 from re import match, findall
 from os import system
+import argparse
 
 
 def filter_hosts (regex):
@@ -52,5 +53,14 @@ def main():
     hostParams = match(RE_SSH, choosedHost).groupdict()
     print("SSH INTO {0}:{1} AS {2} WITH {3}".format(hostParams['ip'], hostParams['port'], "gian", "nothing"))
     connect_ssh(hostParams['ip'], hostParams['port'])
+
+# Next Step :  Add argument parsing
+
+parser = argparse.ArgumentParser(description='fssh - fuzzy ssh helper')
+parser.add_argument('-u', '--user', nargs='?', help='set ssh target user')
+parser.add_argument('-A', '--agent-forward', nargs=None, default=False, help='set ssh Agent Forwarding')
+
+args = parser.parse_args()
+
 
 main()
