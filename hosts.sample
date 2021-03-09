@@ -1,0 +1,17 @@
+[grupo-1]
+#maquina-1 ansible_host=192.168.10.10 ansible_port=22 orig_hostname=machine-01 install=True
+maquina-2 ansible_host=192.168.10.10 ansible_port=22 orig_hostname=machine-02 install=True
+maquina-3 ansible_host=192.168.10.15 ansible_port=2222 orig_hostname=machine-03 install=True
+maquina-4 ansible_host=192.168.10.12 ansible_port=2222 orig_hostname=machine-04 install=True
+maquina-5 ansible_port=2222 ansible_host=192.168.10.13 orig_hostname=machine-05 install=True
+maquina-6 ansible_port=2222 ansible_host=192.168.10.16 orig_hostname=machine-06
+maquina-7 ansible_host=192.168.10.18 ansible_port=8008 orig_hostname=machine-07
+maquina-8 ansible_host=192.168.10.19 orig_hostname=machine-08 ansible_port=22
+
+[grupo-2]
+grupo-1
+grupo-0
+
+#fv4v t
+#Comentario
+#ASf34 fg45fc 34v

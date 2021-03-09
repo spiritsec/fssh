@@ -1,0 +1,56 @@
+#!/usr/bin/python3
+from iterfzf import iterfzf
+from re import match, findall
+from os import system
+
+
+def filter_hosts (regex):
+    HOSTSFILE = open("hosts", "r", encoding="iso-8859-1")
+    lastValue = ''
+    filteredList = []
+    while lastValue is not None:
+        readValue = next(HOSTSFILE, None)
+        if readValue is not None:
+            try:
+                filteredList.append(match(regex, readValue).group(0))
+            except:
+                continue
+        lastValue = readValue
+    HOSTSFILE.close()
+
+    return filteredList
+ 
+def format_list(hosts):
+    hostsDict = []
+    for host in hosts:
+        aux_dict = {}
+        RE_PARAMS = r"(?<=^)(?P<name>\S+)|(?<= orig_hostname=)(?P<hostname>\S+)|(?<= ansible_host=)(?P<ip>\S+)|(?<= ansible_port=)(?P<port>\d+)"
+        for name, hostname, ip, port in findall(RE_PARAMS, host):
+            if name:
+                aux_dict["name"] = name
+            if hostname:
+                aux_dict["hostname"] = hostname
+            if ip:
+                aux_dict["ip"] = ip
+            if port:
+                aux_dict["port"] = port
+        hostsDict.append(aux_dict)
+
+    return hostsDict
+
+def connect_ssh (ip, port):
+    system("ssh {0} -p {1}".format(ip, port))
+
+def main():
+    RE_VALIDHOSTS = r"^(?<!#)\w.*ansible_host.*$"
+    RE_SSH = r"^(?P<name>[\w-]*)\b\s\[(?P<hostname>.+)\]\s\((?P<ip>.+):(?P<port>\d+)\)"
+
+    myList = filter_hosts(RE_VALIDHOSTS)
+    availableHosts = ('{0} [{1}] ({2}:{3})'.format(host['name'], host['hostname'], host['ip'], host['port']) for host in format_list(myList))
+    choosedHost = iterfzf(availableHosts, reversed=True)
+    print(choosedHost)
+    hostParams = match(RE_SSH, choosedHost).groupdict()
+    print("SSH INTO {0}:{1} AS {2} WITH {3}".format(hostParams['ip'], hostParams['port'], "gian", "nothing"))
+    connect_ssh(hostParams['ip'], hostParams['port'])
+
+main()
