@@ -1,12 +1,18 @@
 #!/usr/bin/python3
 from iterfzf import iterfzf
 from re import match, findall
-from os import system
+from os import system, getlogin
+from sys import exit
 import argparse
 
 
-def filter_hosts (regex):
-    HOSTSFILE = open("hosts", "r", encoding="iso-8859-1")
+def filter_hosts (regex, inventory):
+    try:
+        HOSTSFILE = open(inventory, "r", encoding="iso-8859-1")
+    except IOError:
+        print("File not accessible")
+        exit(1)
+
     lastValue = ''
     filteredList = []
     while lastValue is not None:
@@ -39,28 +45,53 @@ def format_list(hosts):
 
     return hostsDict
 
-def connect_ssh (ip, port):
-    system("ssh {0} -p {1}".format(ip, port))
+def connect_ssh (addr, port, login, agt_forward, proxy_port, id_file):
+    if port is None:
+        port = '22'
+    cmd = f"ssh {addr} -p {port}"
 
-def main():
-    RE_VALIDHOSTS = r"^(?<!#)\w.*ansible_host.*$"
-    RE_SSH = r"^(?P<name>[\w-]*)\b\s\[(?P<hostname>.+)\]\s\((?P<ip>.+):(?P<port>\d+)\)"
+    aux = ''
+    if login is not None:
+        cmd += f" -l {login}"
+    else:
+        login = getlogin()
+        cmd += f" -l {login}"
+    if agt_forward is True:
+        cmd += f" -A"
+        aux += f" agent_forwarding"
+    if proxy_port is not None:
+        cmd += f" -D {proxy_port}"
+        aux += f" PROXY TO {proxy_port}"
+    if id_file is not None:
+        cmd += f" -i {id_file}"
+    msg = f"SSH INTO {addr}:{port} AS {login} WITH" + aux if aux else f"SSH INTO {addr}:{port} AS {login}"
 
-    myList = filter_hosts(RE_VALIDHOSTS)
-    availableHosts = ('{0} [{1}] ({2}:{3})'.format(host['name'], host['hostname'], host['ip'], host['port']) for host in format_list(myList))
-    choosedHost = iterfzf(availableHosts, reversed=True)
-    print(choosedHost)
-    hostParams = match(RE_SSH, choosedHost).groupdict()
-    print("SSH INTO {0}:{1} AS {2} WITH {3}".format(hostParams['ip'], hostParams['port'], "gian", "nothing"))
-    connect_ssh(hostParams['ip'], hostParams['port'])
+    print(msg)
+    system(cmd)
 
-# Next Step :  Add argument parsing
+def main(arguments):
+    if arguments.host is not None:
+        connect_ssh(addr=arguments.host, port=arguments.port, login=arguments.login, agt_forward=arguments.agent_forward, proxy_port=arguments.proxy, id_file=arguments.identity_file)
+    else:   
+        RE_VALIDHOSTS = r"^(?<!#)\w.*ansible_host.*$"
+        myList = filter_hosts(RE_VALIDHOSTS, arguments.inventory)
+        availableHosts = (f"{host['name']} [{host['hostname']}] ({host['ip']}:{host['port']})" for host in format_list(myList))
+        choosedHost = iterfzf(availableHosts)
+
+        RE_SSH = r"^(?P<name>[\w-]*)\b\s\[(?P<hostname>.+)\]\s\((?P<ip>.+):(?P<port>\d+)\)"
+        hostParams = match(RE_SSH, choosedHost).groupdict()
+
+        connect_ssh(addr=hostParams['ip'], port=hostParams['port'], login=arguments.login, agt_forward=arguments.agent_forward, proxy_port=arguments.proxy, id_file=arguments.identity_file)
+
 
 parser = argparse.ArgumentParser(description='fssh - fuzzy ssh helper')
-parser.add_argument('-u', '--user', nargs='?', help='set ssh target user')
-parser.add_argument('-A', '--agent-forward', nargs=None, default=False, help='set ssh Agent Forwarding')
-
+parser.add_argument('-l', dest='login', help='specify login name')
+parser.add_argument('-A', '--agent-forward', action='store_true', help='enable forwarding of the authentication agent connection')
+parser.add_argument('-D', '--proxy', help='specify a dynamic port forwarding')
+parser.add_argument('-H', '--host', help='specify address of remote host')
+parser.add_argument('-i', '--identity-file', help='specify identity file path')
+parser.add_argument('-I', '--inventory', help='specify inventory path')
+parser.add_argument('-P', '--port', help='specify port on remote host')
 args = parser.parse_args()
 
-
-main()
+main(args)
